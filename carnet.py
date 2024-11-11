@@ -1,13 +1,17 @@
 from pgmpy.models import BayesianNetwork
 from pgmpy.inference import VariableElimination
 
+
+
+
 car_model = BayesianNetwork(
     [
         ("Battery", "Radio"),
         ("Battery", "Ignition"),
         ("Ignition","Starts"),
         ("Gas","Starts"),
-        ("Starts","Moves")
+        ("Starts","Moves"),
+        ("KeyPresent", "Starts")
     ]
 )
 
@@ -51,6 +55,15 @@ cpd_starts = TabularCPD(
     state_names={"Starts":['yes','no'], "Ignition":["Works", "Doesn't work"], "Gas":['Full',"Empty"]},
 )
 
+cpd_starts = TabularCPD(variable='Starts', variable_card=2, 
+                        values=[[0.99, 0.9, 0.9, 0.0, 0.9, 0.0, 0.0, 0.0], 
+                                [0.01, 0.1, 0.1, 1.0, 0.1, 1.0, 1.0, 1.0]], 
+                        evidence=['Ignition', 'Gas', 'KeyPresent'], 
+                        evidence_card=[2, 2, 2], state_names={"Starts":['yes','no'], "Ignition":["Works", "Doesn't work"], "Gas":['Full',"Empty"], "KeyPresent": ["yes", "no"]}) 
+
+
+
+
 cpd_moves = TabularCPD(
     variable="Moves", variable_card=2,
     values=[[0.8, 0.01],[0.2, 0.99]],
@@ -60,12 +73,52 @@ cpd_moves = TabularCPD(
                  "Starts": ['yes', 'no'] }
 )
 
+# **(5 points)**  3. Last, we will add an additional node to the network, called KeyPresent, that indicates whether or not we have the key for the car.
+#   This is a Categorical variable with two state values, yes and no. The prior for 'yes' is 0.7.
+  
+#   KeyPresent should only affect Starts. Add an edge to starts and update the CPD to indicate that:
+# <pre>
+# P(starts | gas, ignition, keyPresent) = 0.99
+# P(starts | gas, !ignition, keyPresent) = 0.01
+# P(starts | !gas, ignition, keyPresent) = 0.01
+# P(starts | gas, ignition, !keyPresent) = 0.01
+# P(starts | !gas, !ignition, keyPresent) = 0.01
+# P(starts | !gas, ignition, !keyPresent) = 0.01
+# P(starts | gas, !ignition, !keyPresent) = 0.01 
+# P(starts | !gas, !ignition, !keyPresent) = 0.01
+# </pre>
 
-# Associating the parameters with the model structure
-car_model.add_cpds( cpd_starts, cpd_ignition, cpd_gas, cpd_radio, cpd_battery, cpd_moves)
+cpd_keypresent = TabularCPD(
+    variable="KeyPresent", variable_card=2, values=[[0.7], [0.3]], 
+    state_names={"KeyPresent" :["yes", "no"]}
+)
+
+car_model.add_cpds( cpd_starts, cpd_ignition, cpd_gas, cpd_radio, cpd_battery, cpd_moves, cpd_keypresent)
 
 car_infer = VariableElimination(car_model)
 
-print(car_infer.query(variables=["Moves"],evidence={"Radio":"turns on", "Starts":"yes"}))
+def main():
 
+    print(car_infer.query(variables=["Moves"],evidence={"Radio":"turns on", "Starts":"yes"}))
+    print("Given that the car will not move, what is the probability that the battery is not working?")
+    print(car_infer.query(variables=["Battery"], evidence={"Moves": "no"}))
+    print("Given that the radio is not working, what is the probability that the car will not start?")
+    print(car_infer.query(variables=["Starts"], evidence={"Radio": "Doesn't turn on"}))
+    print("Given that the battery is working, does the probability of the radio working change if we discover that the car has gas in it? (fitst without gas observation, then with gas)")
+    print(car_infer.query(variables=["Radio"], evidence={"Battery": "Works"}))
+    print(car_infer.query(variables=["Radio"], evidence={"Battery": "Works", "Gas": "Full"}))
+    print("Given that the car doesn't move, how does the probability of the ignition failing change if we observe that the car dies not have gas in it? (first without gas observation, then with gas)")
+    print(car_infer.query(variables=["Ignition"], evidence={"Moves": "no"}))
+    print(car_infer.query(variables=["Ignition"], evidence={"Moves": "no", "Gas": "Empty"}))
+    print("What is the probability that the car starts if the radio works and it has gas in it?")
+    print(car_infer.query(variables=["Starts"], evidence={"Radio": "turns on", "Gas": "Full"}))
+    print("Add a query showing the probability that the key is not present given that the car does not move")
+    print(car_infer.query(variables=["KeyPresent"], evidence={"Moves": "no"}))
+
+
+
+
+
+if __name__ == "__main__":
+    main()
 
