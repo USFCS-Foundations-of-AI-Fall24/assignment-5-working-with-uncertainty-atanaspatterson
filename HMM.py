@@ -71,7 +71,7 @@ class HMM:
         curr_state = random.choice(states)
         while (curr_state == '#'):
              curr_state = random.choice(states) # start in a random initial state and avoid the #
-        sequence = []
+        final_states = []
         observations = []
     
         for _ in range(n):
@@ -92,16 +92,45 @@ class HMM:
             observations_weights = [float(weight) for weight in observations_weights]
             curr_observation = random.choices(observations_list, weights=observations_weights)[0]
 
-            sequence.append(curr_state)
+            final_states.append(curr_state)
             observations.append(curr_observation)
 
+        sequence = Sequence(final_states, observations)
         return sequence, observations
         
 
     def forward(self, sequence):
-        pass
-    ## you do this: Implement the Viterbi algorithm. Given a Sequence with a list of emissions,
-    ## determine the most likely sequence of states.
+        observation_cols = sequence.outputseq  # cols - observations (meow, purr, silent)
+        state_rows = list(self.transitions.keys()) # rows - states (happy, grumpy, hungry)
+        # print(state_rows)
+
+        matrix = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
+        matrix[0][0] = 1 # filling out the # row with 1
+
+        for i in range(1, len(state_rows)): # from 0 to the number of states, fill day 1 (skip the # row)
+            matrix[i][1] = float(self.transitions["#"][state_rows[i]]) * float(self.emissions[state_rows[i]][observation_cols[0]])
+ 
+        # Fill in the rest of the matrix (days 2 onward)
+        for i in range(2, len(observation_cols) + 1): # starting on day 2
+            for j in range(1, len(state_rows)): # for each state
+                sum = 0
+                for k in range(1, len(state_rows)): # sum over previous states
+                    sum += (matrix[k][i - 1] * float(self.transitions[state_rows[k]][state_rows[j]]) * float(self.emissions[state_rows[j]][observation_cols[i - 1]]))
+                    print(f"variables in sum: {matrix[k][i - 1]} * {float(self.transitions[state_rows[k]][state_rows[j]])} * {float(self.emissions[state_rows[j]][observation_cols[i - 1]])}")
+                    
+                
+                print(f"sum done, result: {sum} insterted in matrix[{j}][{i}]")
+                matrix[j][i] = sum
+
+        max_index = 0
+        max_prob = 0       
+        for i in range(1, len(state_rows)):
+            if matrix[i][len(observation_cols)] > max_prob:
+                max_prob = matrix[i][len(observation_cols)]
+                max_index = i
+    
+        return state_rows[max_index]
+        
 
 
 
@@ -126,8 +155,15 @@ def main():
 
     if args.generate:
         sequence, observations = hmm1.generate(args.generate)
-        print(f"states: {sequence}")
-        print(f"observations: {observations}")
+        # write the observations to a file:
+        with open(args.basename + "_sequence.obs", "w") as f:
+            for observation in observations:
+                f.write(observation + " ")
+    
+    sequence.outputseq = ["purr", "silent", "silent", "meow", "meow"]
+    print(hmm1.forward(sequence))
+
+    
 
 if __name__ == "__main__":
     main()
