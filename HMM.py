@@ -76,8 +76,9 @@ class HMM:
     
         for _ in range(n):
             # choose the next state based on transition probabilities
-            next_states = list(self.transitions.keys())
-            next_states.remove('#')
+            next_states = list(self.transitions[curr_state].keys())
+            if "#" in next_states:
+                next_states.remove('#')
             weights = list(self.transitions[curr_state].values())
 
             # turn to floats from strings
