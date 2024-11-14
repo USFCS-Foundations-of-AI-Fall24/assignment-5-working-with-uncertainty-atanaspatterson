@@ -3,16 +3,7 @@ import HMM
 
 class TestHMM(unittest.TestCase):
     def test_load(self):
-        # Assuming load function takes a file path as input and returns some data structure
-        test_file_path = 'test_data.txt'
-        
-        # Create a test file with some content
-        with open(test_file_path, 'w') as f:
-            f.write('some test data')
-
         h1 = HMM.HMM()
-
-        # Call the load function
         h1.load("cat")
 
         expected_emissions = {
@@ -31,6 +22,3 @@ class TestHMM(unittest.TestCase):
         # Check if the result is as expected
         self.assertEqual(h1.emissions, expected_emissions)  
         self.assertEqual(h1.transitions, expected_transitions)  
-
-if __name__ == '__main__':
-    unittest.main()

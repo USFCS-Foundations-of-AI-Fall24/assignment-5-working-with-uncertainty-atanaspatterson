@@ -67,14 +67,26 @@ class HMM:
                 self.transitions[from_state][to_state] = probability
         
     def generate(self, n):
-        states = list(self.transitions.keys())
-        curr_state = random.choice(states)
-        while (curr_state == '#'):
-             curr_state = random.choice(states) # start in a random initial state and avoid the #
+        # start in a random initial state that is "transitionable" from #.
+        next_states = list(self.transitions['#'].keys())    
+        if "#" in next_states:
+            next_states.remove('#')
+        weights = list(self.transitions['#'].values())
+        weights = [float(weight) for weight in weights]
+        
+        curr_state = random.choices(next_states, weights=weights)[0]
+
+        observations_list = list(self.emissions[curr_state].keys())   
+        observations_weights = list(self.emissions[curr_state].values())
+        observations_weights = [float(weight) for weight in observations_weights]
+        curr_observation = random.choices(observations_list, weights=observations_weights)[0]
+
         final_states = []
         observations = []
+        final_states.append(curr_state)
+        observations.append(curr_observation)
     
-        for _ in range(n):
+        for _ in range(n - 1):
             # choose the next state based on transition probabilities
             next_states = list(self.transitions[curr_state].keys())
             if "#" in next_states:
@@ -83,7 +95,6 @@ class HMM:
 
             # turn to floats from strings
             weights = [float(weight) for weight in weights]
-            
             curr_state = random.choices(next_states, weights=weights)[0]
 
             # choose an observation based on emission probabilities and current state
@@ -102,7 +113,6 @@ class HMM:
     def forward(self, sequence):
         observation_cols = sequence.outputseq  # cols - observations (meow, purr, silent)
         state_rows = list(self.transitions.keys()) # rows - states (happy, grumpy, hungry)
-        # print(state_rows)
 
         matrix = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
         matrix[0][0] = 1 # filling out the # row with 1
@@ -111,9 +121,8 @@ class HMM:
             state_rows.remove("#")  # remove "#" if it exists in the array
             state_rows.insert(0, "#") 
         
-
         for i in range(1, len(state_rows)): # from 0 to the number of states, fill day 1 (skip the # row)
-            matrix[i][1] = float(self.transitions["#"].get(state_rows[i], 0.0)) * float(self.emissions[state_rows[i]].get(observation_cols[0], 0.0)) 
+            matrix[i][1] = float(self.transitions["#"].get(state_rows[i], 0.0)) * float(self.emissions[state_rows[i]].get(observation_cols[0], 0.0))
  
         # fill in the rest of the matrix (days 2 onward)
         for i in range(2, len(observation_cols) + 1): # starting on day 2
@@ -121,10 +130,6 @@ class HMM:
                 sum = 0
                 for k in range(1, len(state_rows)): # sum over previous states
                     sum += (matrix[k][i - 1] * float(self.transitions[state_rows[k]].get(state_rows[j], 0)) * float(self.emissions[state_rows[j]].get(observation_cols[i - 1], 0)))
-                    print(f"variables in sum: {matrix[k][i - 1]} * {float(self.transitions[state_rows[k]].get(state_rows[j], 0))} * {float(self.emissions[state_rows[j]].get(observation_cols[i - 1], 0))}")
-                    
-                
-                print(f"sum done, result: {sum} insterted in matrix[{j}][{i}]")
                 matrix[j][i] = sum
 
         max_index = 0
@@ -135,17 +140,11 @@ class HMM:
                 max_index = i
     
         return state_rows[max_index]
-        
-
-
-
-
-
+    
 
     def viterbi(self, sequence):
         observation_cols = sequence.outputseq  # cols - observations (meow, purr, silent)
         state_rows = list(self.transitions.keys()) # rows - states (happy, grumpy, hungry)
-        # print(state_rows)
 
         matrix = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
         backpointers = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
@@ -168,13 +167,10 @@ class HMM:
                         max = temp
                         max_index = k
                 
-                print(f"max done, result: {max} insterted in matrix[{j}][{i}]")
                 matrix[j][i] = max
                 # logic for backpointers
                 backpointers[j][i] = max_index
 
-        print(f"matrix: {matrix}")
-        print(f"backpointers: {backpointers}")
         max_index = 0
         max_prob = 0       
         for i in range(1, len(state_rows)):
@@ -210,7 +206,8 @@ def main():
 
     if args.generate:
         sequence, observations = hmm1.generate(args.generate)
-        # write the observations to a file:
+        with open(args.basename + "_sequence.obs", "w") as f:
+            f.write(" ".join(observations))
     
     # sequence.outputseq = ["purr", "silent", "silent", "meow", "meow"]
     sequence = Sequence([], [])
@@ -225,8 +222,5 @@ def main():
         print(hmm1.viterbi(sequence))
 
     
-
 if __name__ == "__main__":
     main()
-
-
