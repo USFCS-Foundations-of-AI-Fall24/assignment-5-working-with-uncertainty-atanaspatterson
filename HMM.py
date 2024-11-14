@@ -106,24 +106,29 @@ class HMM:
 
         matrix = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
         matrix[0][0] = 1 # filling out the # row with 1
+    
+        if "#" in state_rows:
+            state_rows.remove("#")  # remove "#" if it exists in the array
+            state_rows.insert(0, "#") 
+        
 
         for i in range(1, len(state_rows)): # from 0 to the number of states, fill day 1 (skip the # row)
-            matrix[i][1] = float(self.transitions["#"][state_rows[i]]) * float(self.emissions[state_rows[i]][observation_cols[0]])
+            matrix[i][1] = float(self.transitions["#"].get(state_rows[i], 0.0)) * float(self.emissions[state_rows[i]].get(observation_cols[0], 0.0)) 
  
-        # Fill in the rest of the matrix (days 2 onward)
+        # fill in the rest of the matrix (days 2 onward)
         for i in range(2, len(observation_cols) + 1): # starting on day 2
             for j in range(1, len(state_rows)): # for each state
                 sum = 0
                 for k in range(1, len(state_rows)): # sum over previous states
-                    sum += (matrix[k][i - 1] * float(self.transitions[state_rows[k]][state_rows[j]]) * float(self.emissions[state_rows[j]][observation_cols[i - 1]]))
-                    print(f"variables in sum: {matrix[k][i - 1]} * {float(self.transitions[state_rows[k]][state_rows[j]])} * {float(self.emissions[state_rows[j]][observation_cols[i - 1]])}")
+                    sum += (matrix[k][i - 1] * float(self.transitions[state_rows[k]].get(state_rows[j], 0)) * float(self.emissions[state_rows[j]].get(observation_cols[i - 1], 0)))
+                    print(f"variables in sum: {matrix[k][i - 1]} * {float(self.transitions[state_rows[k]].get(state_rows[j], 0))} * {float(self.emissions[state_rows[j]].get(observation_cols[i - 1], 0))}")
                     
                 
                 print(f"sum done, result: {sum} insterted in matrix[{j}][{i}]")
                 matrix[j][i] = sum
 
         max_index = 0
-        max_prob = 0       
+        max_prob = -1      
         for i in range(1, len(state_rows)):
             if matrix[i][len(observation_cols)] > max_prob:
                 max_prob = matrix[i][len(observation_cols)]
@@ -138,9 +143,57 @@ class HMM:
 
 
     def viterbi(self, sequence):
-        pass
-    ## You do this. Given a sequence with a list of emissions, fill in the most likely
-    ## hidden states using the Viterbi algorithm.
+        observation_cols = sequence.outputseq  # cols - observations (meow, purr, silent)
+        state_rows = list(self.transitions.keys()) # rows - states (happy, grumpy, hungry)
+        # print(state_rows)
+
+        matrix = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
+        backpointers = [[0 for _ in range(len(observation_cols) + 1)] for _ in range(len(state_rows))]
+        matrix[0][0] = 1 # filling out the # row with 1
+
+        if "#" in state_rows:
+            state_rows.remove("#")  # remove "#" if it exists in the array
+            state_rows.insert(0, "#") 
+
+        for i in range(1, len(state_rows)): # from 0 to the number of states, fill day 1 (skip the # row)
+            matrix[i][1] = float(self.transitions["#"].get(state_rows[i], 0.0)) * float(self.emissions[state_rows[i]].get(observation_cols[0], 0.0)) 
+        # fill in the rest of the matrix (days 2 onward)
+        for i in range(2, len(observation_cols) + 1): # starting on day 2
+            for j in range(1, len(state_rows)): # for each state
+                max = 0
+                max_index = 0
+                for k in range(1, len(state_rows)): # sum over previous states
+                    temp = matrix[k][i - 1] * float(self.transitions[state_rows[k]].get(state_rows[j], 0.0)) * float(self.emissions[state_rows[j]].get(observation_cols[i - 1], 0.0))
+                    if temp > max:
+                        max = temp
+                        max_index = k
+                
+                print(f"max done, result: {max} insterted in matrix[{j}][{i}]")
+                matrix[j][i] = max
+                # logic for backpointers
+                backpointers[j][i] = max_index
+
+        print(f"matrix: {matrix}")
+        print(f"backpointers: {backpointers}")
+        max_index = 0
+        max_prob = 0       
+        for i in range(1, len(state_rows)):
+            if matrix[i][len(observation_cols)] > max_prob:
+                max_prob = matrix[i][len(observation_cols)]
+                max_index = i
+        
+        most_likely_sequence = []
+        curr_col = len(observation_cols)
+        while max_index != 0:
+            most_likely_sequence.append(state_rows[max_index])
+            max_index = backpointers[max_index][curr_col]
+            curr_col -= 1
+        
+        return most_likely_sequence[::-1]
+        
+                
+        
+         
 
 
 
@@ -148,6 +201,8 @@ def main():
     parser = argparse.ArgumentParser(description="HMM")
     parser.add_argument("basename", type=str, help="basename for trans & emit")
     parser.add_argument("--generate", type=int, help="generate a sequence of length n", default=None)
+    parser.add_argument("--forward", type=str, help="file to open to create a sequence for forward")
+    parser.add_argument("--viterbi", type=str, help="file to open to create a sequence for viterbi")
     args = parser.parse_args()
 
     hmm1 = HMM()
@@ -156,12 +211,18 @@ def main():
     if args.generate:
         sequence, observations = hmm1.generate(args.generate)
         # write the observations to a file:
-        with open(args.basename + "_sequence.obs", "w") as f:
-            for observation in observations:
-                f.write(observation + " ")
     
-    sequence.outputseq = ["purr", "silent", "silent", "meow", "meow"]
-    print(hmm1.forward(sequence))
+    # sequence.outputseq = ["purr", "silent", "silent", "meow", "meow"]
+    sequence = Sequence([], [])
+    if args.forward:
+        with open(args.forward, 'r') as f:
+            sequence.outputseq = f.readline().strip().split(" ")
+        print(hmm1.forward(sequence))
+    
+    if args.viterbi:
+        with open(args.forward, 'r') as f:
+            sequence.outputseq = f.readline().strip().split(" ")
+        print(hmm1.viterbi(sequence))
 
     
 
