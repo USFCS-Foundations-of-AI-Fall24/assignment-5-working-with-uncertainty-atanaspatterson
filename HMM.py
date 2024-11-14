@@ -185,6 +185,7 @@ class HMM:
             max_index = backpointers[max_index][curr_col]
             curr_col -= 1
         
+
         return most_likely_sequence[::-1]
         
                 
@@ -204,6 +205,8 @@ def main():
     hmm1 = HMM()
     hmm1.load(args.basename)
 
+    valid_landing = ["2,5", "3,4", "4,3", "4,4", "5,5"]
+
     if args.generate:
         sequence, observations = hmm1.generate(args.generate)
         with open(args.basename + "_sequence.obs", "w") as f:
@@ -214,7 +217,8 @@ def main():
     if args.forward:
         with open(args.forward, 'r') as f:
             sequence.outputseq = f.readline().strip().split(" ")
-        print(hmm1.forward(sequence))
+            likely_state = hmm1.forward(sequence)
+        print(likely_state if args.basename != "lander" else (f"{likely_state} - " + ("Safe to land" if  likely_state in valid_landing else "Unsafe to land")))
     
     if args.viterbi:
         with open(args.forward, 'r') as f:
