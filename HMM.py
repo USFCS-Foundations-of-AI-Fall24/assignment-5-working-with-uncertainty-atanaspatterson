@@ -1,5 +1,6 @@
 
 
+from collections import defaultdict
 import random
 import argparse
 import codecs
@@ -38,13 +39,63 @@ class HMM:
         """reads HMM structure from transition (basename.trans),
         and emission (basename.emit) files,
         as well as the probabilities."""
-        pass
+        basename_emissions = basename + ".emit"
+        basename_transition = basename + ".trans"
+        with open(basename_emissions, 'r') as f_emit:
+            for line in f_emit:
+                line = line.strip()
+                if not line:
+                    continue
+                data = line.split(" ")
+                state, observation, probability = data[0], data[1], data[2]
 
+                # does key exist in the emissions dictionary
+                if state not in self.emissions:
+                    self.emissions[state] = {}
+                self.emissions[state][observation] = probability
 
-   ## you do this.
+        with open(basename_transition, 'r') as f_transition:
+            for line in f_transition:
+                line = line.strip()
+                if not line:
+                    continue
+                data = line.split(" ")
+                from_state, to_state, probability = data[0], data[1], data[2]
+                # does key exist in the transitions dictionary
+                if from_state not in self.transitions:
+                    self.transitions[from_state] = {}
+                self.transitions[from_state][to_state] = probability
+        
     def generate(self, n):
-        """return an n-length Sequence by randomly sampling from this HMM."""
-        pass
+        states = list(self.transitions.keys())
+        curr_state = random.choice(states)
+        while (curr_state == '#'):
+             curr_state = random.choice(states) # start in a random initial state and avoid the #
+        sequence = []
+        observations = []
+    
+        for _ in range(n):
+            # choose the next state based on transition probabilities
+            next_states = list(self.transitions.keys())
+            next_states.remove('#')
+            weights = list(self.transitions[curr_state].values())
+
+            # turn to floats from strings
+            weights = [float(weight) for weight in weights]
+            
+            curr_state = random.choices(next_states, weights=weights)[0]
+
+            # choose an observation based on emission probabilities and current state
+            observations_list = list(self.emissions[curr_state].keys())
+            observations_weights = list(self.emissions[curr_state].values())
+            observations_weights = [float(weight) for weight in observations_weights]
+            curr_observation = random.choices(observations_list, weights=observations_weights)[0]
+
+            sequence.append(curr_state)
+            observations.append(curr_observation)
+
+        return sequence, observations
+        
 
     def forward(self, sequence):
         pass
@@ -63,6 +114,21 @@ class HMM:
 
 
 
+def main():
+    parser = argparse.ArgumentParser(description="HMM")
+    parser.add_argument("basename", type=str, help="basename for trans & emit")
+    parser.add_argument("--generate", type=int, help="generate a sequence of length n", default=None)
+    args = parser.parse_args()
 
+    hmm1 = HMM()
+    hmm1.load(args.basename)
+
+    if args.generate:
+        sequence, observations = hmm1.generate(args.generate)
+        print(f"states: {sequence}")
+        print(f"observations: {observations}")
+
+if __name__ == "__main__":
+    main()
 
 
