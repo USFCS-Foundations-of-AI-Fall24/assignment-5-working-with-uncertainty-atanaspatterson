@@ -1,0 +1,49 @@
+Assignment 5 Comments:
+
+sklearn:
+
+new dataset. 5/5
+
+random forest 5/5
+
+GridSearchCV 5/5
+
+Scatterplot 5/5
+
+Belief Networks:
+
+alarm queries 5/5
+
+car queries 5/5
+
+additional node 2/5 - you have two car_starts nodes.
+
+HMM:
+
+load 5/5
+
+generate 10/10
+
+lander models 5/5
+
+forward 10/10
+
+viterbi 11/15 - your main doesn't work right; I had to fix the command line args.
+Also, it works with lander and cat, but not the whole ambiguous_sents.obs file.
+
+Utility:
+
+q1 5/5
+
+q2 5/5
+
+q3 2/2
+
+q4 3/3
+
+q5 1/2 - if it's not rocky, we take r1.
+
+q6 3/3
+
+92/100
+
